@@ -2,82 +2,146 @@
 
 # 🛡️ AuditVault
 
-**Event-Sourced Auditing Engine & Real-Time Intelligence**
-
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.5-6DB33F?style=for-the-badge&logo=springboot)](https://spring.io/projects/spring-boot)
-[![Angular](https://img.shields.io/badge/Angular-17+-DD0031?style=for-the-badge&logo=angular)](https://angular.io/)
-[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.x-005571?style=for-the-badge&logo=elasticsearch)](https://www.elastic.co/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
-
-*AuditVault responde à pergunta definitiva de negócios: "Quem alterou este registro, quando, e qual era o estado exato antes da mudança?"*
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Angular](https://img.shields.io/badge/Angular-17+-DD0031?style=for-the-badge&logo=angular&logoColor=white)](https://angular.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.x-005571?style=for-the-badge&logo=elasticsearch&logoColor=white)](https://www.elastic.co/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
 
 </div>
 
 ---
 
-## 🎯 O Problema que Resolvemos
+> **"O que aconteceu com o registro X?"** — Toda empresa lida com essa pergunta.
 
-Em sistemas corporativos monolíticos ou microsserviços tradicionais (CRUD), o estado dos dados é constantemente sobrescrito (`UPDATE` / `DELETE`). Quando ocorrem anomalias de faturamento, vazamentos de acesso ou problemas legais, a pergunta surge: **Como esse dado estava no dia 14 às 10h da manhã?**
+Em sistemas tradicionais baseados em CRUD, mutações sobrescrevem dados irreversivelmente. Quando ocorrem falhas de faturamento, brechas de acesso ou auditorias regulatórias (LGPD, SOX), a investigação chega tarde demais. O **AuditVault** resolve isso de forma elegante: ao anotar um método de serviço com `@Auditable`, todo evento de mutação é interceptado via AOP, mascarado de PII e gravado de forma imutável em um Event Store — nunca mais sobrescrito, sempre reconstituível.
 
-O **AuditVault** resolve isso acoplando transparentemente a qualquer API via Aspect-Oriented Programming (AOP), interceptando mutações e publicando-as em um modelo **Event Sourcing** indestrutível.
+Com CQRS, você consulta o estado exato de qualquer agregado em qualquer ponto no tempo. Com SSE, o dashboard de auditoria reflete eventos *ao vivo*, sem polling. Com Elasticsearch, você encontra qualquer payload específico em milissegundos, mesmo entre milhões de registros.
 
-## 🏗️ Arquitetura e Fluxo (Mermaid)
+---
+
+## 🏗️ Arquitetura e Fluxo de Dados
 
 ```mermaid
-sequenceDiagram
-    participant User as Cliente UI / API
-    participant API as Business Service (@Auditable)
-    participant AOP as Audit Aspect (Interceptor)
-    participant Publisher as Async Event Publisher
-    participant PG as PostgreSQL (Event Store)
-    participant ES as Elasticsearch (Search Node)
-    participant SSE as SSE Notifier (Real-time)
-    participant UI as AuditVault Angular UI
+flowchart TD
+    A([🌐 Client Request]) --> B[Business API\n@Auditable Method]
+    B --> C{AOP Interceptor\nAuditAspect}
+    C -->|Máscara PII\nDataMaskingService| D[ApplicationEventPublisher]
+    C -->|Resposta Síncrona Imediata| A
 
-    User->>API: 1. POST /orders (Mutações)
-    API-->>AOP: 2. Intercepta Contexto & Payload
-    AOP->>Publisher: 3. Mascara PII & Publica AuditEvent
-    AOP-->>User: 4. Retorna Resposta Síncrona Imediata
+    D -->|Thread Assíncrona\n@Async auditTaskExecutor| E[AuditEventListener]
 
-    par Processamento Assíncrono
-        Publisher->>PG: 5. Persiste Evento Imutável (Append-only)
-        Publisher->>ES: 6. Indexa Payload para Busca Full-Text
-        Publisher->>SSE: 7. Dispara Notificação Push
-        SSE-->>UI: 8. Interface pisca em tempo real com Diff
-    end
+    E --> F[(PostgreSQL\nEvent Store\nAppend-only + JSONB)]
+    E -->|try-catch resiliente| G[(Elasticsearch\nÍndice audit_events)]
+    E --> H[SseNotificationService\nCopyOnWriteArrayList]
+
+    H -->|text/event-stream| I([🖥️ Angular Dashboard\nSignals + EventSource])
+    F -->|CQRS Read Model| J[AuditStateRebuilderService\nReplay + Snapshots]
+    G -->|Full-Text Search| I
+    J --> I
+
+    F -->|Spring Batch\nChunk Processing| K[📄 PDF Export\njava.io.tmpdir]
+    K -->|GET /export/download| I
+
+    style F fill:#336791,color:#fff
+    style G fill:#005571,color:#fff
+    style I fill:#DD0031,color:#fff
+    style K fill:#6DB33F,color:#fff
 ```
 
-## 🛠️ Tecnologias e Padrões Aplicados
+---
 
-- **Backend**: Java 17, Spring Boot 3.2, Spring AOP, Spring Batch (Relatórios PDF assíncronos), Spring Data JPA, Spring Data Elasticsearch.
-- **Frontend**: Angular 17+ (Standalone Components, Signals), TailwindCSS, TypeScript.
-- **Infraestrutura**: Docker Multi-stage, Docker Compose, PostgreSQL (JSONB), Elasticsearch 8.x.
-- **Padrões Arquiteturais**: Clean Architecture, CQRS (Eventos vs Reconstrução de Estado), Event Sourcing, Outbox-like Publishing, Observabilidade (SRE) com Actuator/Prometheus.
+## ⚙️ Destaques de Engenharia
 
-## 🚀 Como Rodar (Developer Experience)
+- **🔒 Data Masking Automático (LGPD/GDPR):** O `DataMaskingService` detecta chaves sensíveis (`password`, `cpf`, `cardNumber`, `secret`) no payload JSON e as substitui por `***` antes de qualquer persistência — sem esforço manual do desenvolvedor.
 
-O projeto é 100% conteinerizado. Sem necessidade de instalar dependências locais complexas na sua máquina base.
+- **📸 Snapshots para Reconstrução $O(1)$:** Sem snapshots, reconstruir o estado de um agregado após 10.000 eventos exigiria replay completo. O `SnapshotTriggerService` grava checkpoints a cada N eventos, reduzindo o custo de replay ao mínimo.
 
-1. **Clone o repositório**
-2. **Suba todo o ecossistema com um único comando**:
-   ```bash
-   docker-compose up -d --build
-   ```
+- **📄 Exportação PDF Assíncrona (Spring Batch):** Relatórios de auditoria para grandes volumes são gerados em Chunk-Processing sem ocupar uma thread HTTP. O cliente recebe um `jobExecutionId` e busca o PDF pronto via `GET /api/audit/export/download/{id}`.
 
-### 🗺️ Mapeamento de Portas
+- **🔍 Full-Text Search (Elasticsearch):** Toda query SQL com `LIKE %termo%` em JSONB degrada linearmente. No AuditVault, o `AuditEventListener` indexa cada evento assincronamente no ES. Pesquisas retornam em milissegundos independente do volume.
 
-Após o build (que pode levar alguns minutos na primeira execução), acesse os serviços:
+- **⚡ Real-Time via SSE:** Server-Sent Events (unidirecional, HTTP puro) foi escolhido sobre WebSockets porque logs de auditoria são inerentemente servidor→cliente. Proxies e load balancers corporativos os atravessam sem configuração extra. O `SseNotificationService` envia heartbeats a cada 25s para evitar drops de conexão ociosa.
+
+- **📊 Observabilidade SRE:** Métricas JVM, pool JDBC, Elasticsearch e latência de endpoints são expostas no formato Prometheus via `/actuator/prometheus`, prontas para dashboards Grafana.
+
+---
+
+## 🛠️ Stack Completa
+
+| Camada | Tecnologia |
+|--------|-----------|
+| **Backend** | Java 17, Spring Boot 3.2, Spring AOP, Spring Data JPA, Spring Data Elasticsearch, Spring Batch |
+| **Banco Write** | PostgreSQL 15 (JSONB para payloads, Flyway para migrações) |
+| **Banco Search** | Elasticsearch 8.x |
+| **Frontend** | Angular 17+ (Standalone Components, Signals, `@for`/`@if`), TailwindCSS |
+| **Relatórios** | Apache PDFBox via OpenPDF + Spring Batch (Chunk-oriented) |
+| **Observabilidade** | Spring Boot Actuator + Micrometer (Prometheus) |
+| **Infra / DX** | Docker Multi-stage Build, Docker Compose, Nginx (Reverse Proxy + SPA fallback) |
+| **Testes** | JUnit 5, Testcontainers (PostgreSQL + Elasticsearch), @WebMvcTest, Spring Batch Integration Tests |
+| **Padrões** | Clean Architecture, CQRS, Event Sourcing, AOP, TDD |
+
+---
+
+## 🚀 Como Executar
+
+> **Pré-requisito único:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução.
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/joaogabriel43/AuditVault.git
+cd AuditVault
+
+# 2. Suba toda a infraestrutura com um único comando
+docker-compose up -d --build
+```
+
+O Docker Compose irá construir as imagens e levantar, na ordem correta:
+1. 🐘 `auditvault-postgres` — Event Store (aguarda healthcheck)
+2. 🔍 `auditvault-elasticsearch` — Motor de busca full-text (aguarda healthcheck)
+3. ☕ `auditvault-backend` — API Spring Boot (aguarda Postgres + ES estarem saudáveis)
+4. 🌐 `auditvault-frontend` — Dashboard Angular servido pelo Nginx
+
+### 🗺️ Serviços Disponíveis
 
 | Serviço | URL | Descrição |
 |---------|-----|-----------|
-| **AuditVault UI** | [http://localhost:4200](http://localhost:4200) | Dashboard Angular em tempo real |
-| **Backend API** | `http://localhost:8080/api/audit` | REST API (CQRS e SSE) |
-| **Elasticsearch** | `http://localhost:9200` | Motor de busca Full-Text |
-| **Métricas SRE** | `http://localhost:8080/actuator/prometheus` | Scrape endpoint para Grafana |
+| **Dashboard UI** | [http://localhost:4200](http://localhost:4200) | Angular + Tailwind com SSE ao vivo |
+| **REST API** | `http://localhost:8080/api/audit` | Endpoints CQRS, Search e Export |
+| **Health Check** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | Status de todos os componentes |
+| **Métricas SRE** | [http://localhost:8080/actuator/prometheus](http://localhost:8080/actuator/prometheus) | Scrape para Grafana/Prometheus |
+| **Elasticsearch** | [http://localhost:9200](http://localhost:9200) | Motor de busca (direto) |
 
-## 💡 Recursos de Destaque
+---
 
-- **Full-Text Search Global**: Ache um evento perdido em milhares buscando qualquer valor inserido nas chaves do JSON de Payload.
-- **Snapshots**: Economia extrema de CPU. Estados consolidados reconstruídos não realizam *replay* desde a estaca zero, e sim a partir do último checkpoint (a cada N eventos).
-- **Relatórios Async (Spring Batch)**: Geração de PDF em Chunk-Processing não retém conexões HTTP ativas evitando timeouts terríveis para PDFs longos.
-- **Data Masking (LGPD/GDPR)**: PII (Personal Identifiable Information) detectada no payload é ofuscada dinamicamente (`***`) por segurança antes da persistência.
+## 📡 Endpoints Principais da API
+
+```http
+# Buscar eventos paginados de um agregado
+GET /api/audit/events/{aggregateId}?page=0&size=20
+
+# Reconstruir estado de um agregado em um ponto no tempo (CQRS)
+GET /api/audit/state/{aggregateId}?targetTime=2024-01-15T10:30:00Z
+
+# Full-Text Search em todos os payloads (Elasticsearch)
+GET /api/audit/search?query=laptopPro&page=0&size=10
+
+# Disparar exportação PDF assíncrona (Spring Batch)
+POST /api/audit/export/{aggregateId}
+→ { "jobExecutionId": 42, "status": "STARTED" }
+
+# Baixar PDF gerado
+GET /api/audit/export/download/42
+
+# Stream de eventos em tempo real (SSE)
+GET /api/audit/stream   →  text/event-stream
+```
+
+---
+
+<div align="center">
+
+**Construído com ❤️ sobre os pilares de Clean Architecture, TDD e Event Sourcing**
+
+</div>
