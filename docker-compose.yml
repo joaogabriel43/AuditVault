@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: auditvault-postgres
+    environment:
+      POSTGRES_DB: auditvaultdb
+      POSTGRES_USER: audituser
+      POSTGRES_PASSWORD: auditpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U audituser -d auditvaultdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: auditvault-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auditvault-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auditvault-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auditvaultdb
+      SPRING_DATASOURCE_USERNAME: audituser
+      SPRING_DATASOURCE_PASSWORD: auditpassword
+      SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  auditvault-frontend:
+    build:
+      context: ./auditvault-ui
+      dockerfile: Dockerfile
+    container_name: auditvault-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - auditvault-backend
+
+volumes:
+  postgres_data:
+  elasticsearch_data:

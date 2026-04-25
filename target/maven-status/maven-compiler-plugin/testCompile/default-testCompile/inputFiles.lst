@@ -1,0 +1,11 @@
+F:\Projetos\AuditVault\src\test\java\com\auditvault\infrastructure\elasticsearch\ElasticsearchIntegrationTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\infrastructure\integration\AuditAspectIntegrationTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\infrastructure\persistence\AuditEventRepositoryIntegrationTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\application\aspect\AuditAspectTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\domain\AuditSnapshotTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\infrastructure\batch\AuditExportJobIntegrationTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\presentation\AuditQueryControllerTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\infrastructure\integration\SnapshotTriggerIntegrationTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\application\service\AuditStateRebuilderServiceTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\domain\AuditEventTest.java
+F:\Projetos\AuditVault\src\test\java\com\auditvault\application\security\DataMaskingServiceTest.java

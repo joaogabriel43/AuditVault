@@ -1,0 +1,16 @@
+com\auditvault\infrastructure\batch\AuditExportJobIntegrationTest.class
+com\auditvault\presentation\AuditQueryControllerTest.class
+com\auditvault\application\security\DataMaskingServiceTest.class
+com\auditvault\infrastructure\integration\AuditAspectIntegrationTest$TestConfig.class
+com\auditvault\infrastructure\batch\AuditExportJobIntegrationTest$TestConfig.class
+com\auditvault\application\service\AuditStateRebuilderServiceTest.class
+com\auditvault\infrastructure\elasticsearch\ElasticsearchIntegrationTest.class
+com\auditvault\application\aspect\AuditAspectTest$DummyClass.class
+com\auditvault\infrastructure\integration\AuditAspectIntegrationTest$DummyService.class
+com\auditvault\domain\AuditSnapshotTest.class
+com\auditvault\infrastructure\integration\SnapshotTriggerIntegrationTest.class
+com\auditvault\domain\AuditEventTest.class
+com\auditvault\infrastructure\persistence\AuditEventRepositoryIntegrationTest.class
+com\auditvault\application\aspect\AuditAspectTest.class
+com\auditvault\infrastructure\integration\AuditAspectIntegrationTest.class
+com\auditvault\infrastructure\integration\SnapshotTriggerIntegrationTest$TestConfig.class
