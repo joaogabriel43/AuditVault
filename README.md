@@ -2,6 +2,8 @@
 
 # 🛡️ AuditVault
 
+**An Enterprise-Grade, Event-Sourced Audit Log System**
+
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Angular](https://img.shields.io/badge/Angular-17+-DD0031?style=for-the-badge&logo=angular&logoColor=white)](https://angular.io/)
@@ -13,27 +15,36 @@
 
 ---
 
-> **"O que aconteceu com o registro X?"** — Toda empresa lida com essa pergunta.
+## 🔍 Overview
 
-Em sistemas tradicionais baseados em CRUD, mutações sobrescrevem dados irreversivelmente. Quando ocorrem falhas de faturamento, brechas de acesso ou auditorias regulatórias (LGPD, SOX), a investigação chega tarde demais. O **AuditVault** resolve isso de forma elegante: ao anotar um método de serviço com `@Auditable`, todo evento de mutação é interceptado via AOP, mascarado de PII e gravado de forma imutável em um Event Store — nunca mais sobrescrito, sempre reconstituível.
+*"What happened to record X?"* — A critical question every enterprise eventually faces.
 
-Com CQRS, você consulta o estado exato de qualquer agregado em qualquer ponto no tempo. Com SSE, o dashboard de auditoria reflete eventos *ao vivo*, sem polling. Com Elasticsearch, você encontra qualquer payload específico em milissegundos, mesmo entre milhões de registros.
+In traditional CRUD-based systems, data mutations overwrite history irreversibly. When billing discrepancies, security breaches, or regulatory audits (LGPD, GDPR, SOX) occur, piecing together the timeline is often impossible. 
+
+**AuditVault** addresses this challenge elegantly. By annotating service methods with `@Auditable`, mutation events are transparently intercepted using Aspect-Oriented Programming (AOP), stripped of sensitive PII data, and immutably recorded into an append-only Event Store. 
+
+### Key Architectural Benefits:
+- **CQRS Pattern:** Decouples write and read models, allowing point-in-time state reconstruction.
+- **Real-Time Streaming:** Pushes live audit events to the dashboard via Server-Sent Events (SSE).
+- **Blazing Fast Search:** Leverages Elasticsearch for sub-second full-text queries across millions of logs.
 
 ---
 
-## 🏗️ Arquitetura e Fluxo de Dados
+## 🏗️ Architecture & Data Flow
+
+AuditVault relies on an asynchronous, resilient pipeline to ensure zero performance impact on core business logic.
 
 ```mermaid
 flowchart TD
     A([🌐 Client Request]) --> B[Business API\n@Auditable Method]
     B --> C{AOP Interceptor\nAuditAspect}
-    C -->|Máscara PII\nDataMaskingService| D[ApplicationEventPublisher]
-    C -->|Resposta Síncrona Imediata| A
+    C -->|PII Masking\nDataMaskingService| D[ApplicationEventPublisher]
+    C -->|Immediate Sync Response| A
 
-    D -->|Thread Assíncrona\n@Async auditTaskExecutor| E[AuditEventListener]
+    D -->|Async Thread\n@Async auditTaskExecutor| E[AuditEventListener]
 
     E --> F[(PostgreSQL\nEvent Store\nAppend-only + JSONB)]
-    E -->|try-catch resiliente| G[(Elasticsearch\nÍndice audit_events)]
+    E -->|Resilient try-catch| G[(Elasticsearch\naudit_events Index)]
     E --> H[SseNotificationService\nCopyOnWriteArrayList]
 
     H -->|text/event-stream| I([🖥️ Angular Dashboard\nSignals + EventSource])
@@ -52,96 +63,97 @@ flowchart TD
 
 ---
 
-## ⚙️ Destaques de Engenharia
+## ⚙️ Core Features & Engineering Highlights
 
-- **🔒 Data Masking Automático (LGPD/GDPR):** O `DataMaskingService` detecta chaves sensíveis (`password`, `cpf`, `cardNumber`, `secret`) no payload JSON e as substitui por `***` antes de qualquer persistência — sem esforço manual do desenvolvedor.
-
-- **📸 Snapshots para Reconstrução $O(1)$:** Sem snapshots, reconstruir o estado de um agregado após 10.000 eventos exigiria replay completo. O `SnapshotTriggerService` grava checkpoints a cada N eventos, reduzindo o custo de replay ao mínimo.
-
-- **📄 Exportação PDF Assíncrona (Spring Batch):** Relatórios de auditoria para grandes volumes são gerados em Chunk-Processing sem ocupar uma thread HTTP. O cliente recebe um `jobExecutionId` e busca o PDF pronto via `GET /api/audit/export/download/{id}`.
-
-- **🔍 Full-Text Search (Elasticsearch):** Toda query SQL com `LIKE %termo%` em JSONB degrada linearmente. No AuditVault, o `AuditEventListener` indexa cada evento assincronamente no ES. Pesquisas retornam em milissegundos independente do volume.
-
-- **⚡ Real-Time via SSE:** Server-Sent Events (unidirecional, HTTP puro) foi escolhido sobre WebSockets porque logs de auditoria são inerentemente servidor→cliente. Proxies e load balancers corporativos os atravessam sem configuração extra. O `SseNotificationService` envia heartbeats a cada 25s para evitar drops de conexão ociosa.
-
-- **📊 Observabilidade SRE:** Métricas JVM, pool JDBC, Elasticsearch e latência de endpoints são expostas no formato Prometheus via `/actuator/prometheus`, prontas para dashboards Grafana.
+- **🔒 Automated PII Data Masking:** Ensures LGPD/GDPR compliance. The `DataMaskingService` scans JSON payloads for sensitive keys (e.g., `password`, `cpf`, `cardNumber`, `secret`) and redacts them (`***`) prior to storage.
+- **📸 $O(1)$ State Reconstruction via Snapshots:** Replaying 100,000 events to determine current state is highly inefficient. The `SnapshotTriggerService` captures state checkpoints every *N* events, drastically speeding up CQRS queries.
+- **📄 Async PDF Export (Spring Batch):** Generating massive compliance reports shouldn't block HTTP threads. The chunk-oriented batch processor runs asynchronously, issuing a `jobExecutionId` for polling and download.
+- **🔍 High-Performance Full-Text Search:** Standard `LIKE %term%` database queries fall short at scale. Events are indexed in Elasticsearch asynchronously, ensuring rapid multi-dimensional search.
+- **⚡ Live Dashboard via SSE:** Unidirectional Server-Sent Events push logs instantly to the UI. A 25-second heartbeat mechanism maintains persistent, low-overhead connections through enterprise proxies.
+- **📊 SRE-Ready Observability:** Pre-configured endpoints for JVM health, connection pools, and query latencies exported in Prometheus format via Spring Boot Actuator.
 
 ---
 
-## 🛠️ Stack Completa
+## 🛠️ Tech Stack
 
-| Camada | Tecnologia |
-|--------|-----------|
-| **Backend** | Java 17, Spring Boot 3.2, Spring AOP, Spring Data JPA, Spring Data Elasticsearch, Spring Batch |
-| **Banco Write** | PostgreSQL 15 (JSONB para payloads, Flyway para migrações) |
-| **Banco Search** | Elasticsearch 8.x |
-| **Frontend** | Angular 17+ (Standalone Components, Signals, `@for`/`@if`), TailwindCSS |
-| **Relatórios** | Apache PDFBox via OpenPDF + Spring Batch (Chunk-oriented) |
-| **Observabilidade** | Spring Boot Actuator + Micrometer (Prometheus) |
-| **Infra / DX** | Docker Multi-stage Build, Docker Compose, Nginx (Reverse Proxy + SPA fallback) |
-| **Testes** | JUnit 5, Testcontainers (PostgreSQL + Elasticsearch), @WebMvcTest, Spring Batch Integration Tests |
-| **Padrões** | Clean Architecture, CQRS, Event Sourcing, AOP, TDD |
-
----
-
-## 🚀 Como Executar
-
-> **Pré-requisito único:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e em execução.
-
-```bash
-# 1. Clone o repositório
-git clone https://github.com/joaogabriel43/AuditVault.git
-cd AuditVault
-
-# 2. Suba toda a infraestrutura com um único comando
-docker-compose up -d --build
-```
-
-O Docker Compose irá construir as imagens e levantar, na ordem correta:
-1. 🐘 `auditvault-postgres` — Event Store (aguarda healthcheck)
-2. 🔍 `auditvault-elasticsearch` — Motor de busca full-text (aguarda healthcheck)
-3. ☕ `auditvault-backend` — API Spring Boot (aguarda Postgres + ES estarem saudáveis)
-4. 🌐 `auditvault-frontend` — Dashboard Angular servido pelo Nginx
-
-### 🗺️ Serviços Disponíveis
-
-| Serviço | URL | Descrição |
-|---------|-----|-----------|
-| **Dashboard UI** | [http://localhost:4200](http://localhost:4200) | Angular + Tailwind com SSE ao vivo |
-| **REST API** | `http://localhost:8080/api/audit` | Endpoints CQRS, Search e Export |
-| **Health Check** | [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health) | Status de todos os componentes |
-| **Métricas SRE** | [http://localhost:8080/actuator/prometheus](http://localhost:8080/actuator/prometheus) | Scrape para Grafana/Prometheus |
-| **Elasticsearch** | [http://localhost:9200](http://localhost:9200) | Motor de busca (direto) |
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend Core** | Java 17, Spring Boot 3.2, Spring AOP, Spring Data JPA |
+| **Batch & Search** | Spring Batch (Chunk-oriented), Spring Data Elasticsearch |
+| **Write Database** | PostgreSQL 15 (JSONB optimization, Flyway Migrations) |
+| **Search Engine** | Elasticsearch 8.x |
+| **Frontend** | Angular 17+ (Standalone, Signals, TailwindCSS) |
+| **Reporting** | OpenPDF / Apache PDFBox |
+| **Observability** | Micrometer + Prometheus / Actuator |
+| **Infrastructure** | Docker Multi-stage, Docker Compose, Nginx Reverse Proxy |
 
 ---
 
-## 📡 Endpoints Principais da API
+## 🚀 How to Run
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+### Quick Start
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/joaogabriel43/AuditVault.git
+   cd AuditVault
+   ```
+2. Spin up the entire ecosystem:
+   ```bash
+   docker-compose up -d --build
+   ```
+
+*Docker Compose will automatically orchestrate the build sequence, ensuring standard health checks pass before booting dependent services:*
+- `auditvault-postgres` (Event Store)
+- `auditvault-elasticsearch` (Search Index)
+- `auditvault-backend` (Spring Boot API)
+- `auditvault-frontend` (Angular SPA via Nginx)
+
+### 🗺️ Accessible Services
+
+| Service | Address | Purpose |
+| :--- | :--- | :--- |
+| **Frontend UI** | [http://localhost:4200](http://localhost:4200) | Live monitoring & querying |
+| **API Gateway** | `http://localhost:8080/api/audit` | System endpoints |
+| **Health Check** | `http://localhost:8080/actuator/health` | Node metrics |
+| **Prometheus** | `http://localhost:8080/actuator/prometheus` | SRE scraping |
+
+---
+
+## 📡 Primary API Endpoints
 
 ```http
-# Buscar eventos paginados de um agregado
+# Retrieve paginated event history
 GET /api/audit/events/{aggregateId}?page=0&size=20
 
-# Reconstruir estado de um agregado em um ponto no tempo (CQRS)
+# Reconstruct aggregate state at point-in-time
 GET /api/audit/state/{aggregateId}?targetTime=2024-01-15T10:30:00Z
 
-# Full-Text Search em todos os payloads (Elasticsearch)
+# Full-text search across all payloads
 GET /api/audit/search?query=laptopPro&page=0&size=10
 
-# Disparar exportação PDF assíncrona (Spring Batch)
+# Trigger asynchronous compliance report
 POST /api/audit/export/{aggregateId}
-→ { "jobExecutionId": 42, "status": "STARTED" }
+# Response: { "jobExecutionId": 42, "status": "STARTED" }
 
-# Baixar PDF gerado
+# Download generated report
 GET /api/audit/export/download/42
 
-# Stream de eventos em tempo real (SSE)
-GET /api/audit/stream   →  text/event-stream
+# Establish SSE Event Stream
+GET /api/audit/stream
 ```
+
+---
+
+## 🌐 Live Demo
+*Note: This project is designed to be deployed locally via the Docker configuration provided above. There is currently no public cloud instance running.*
 
 ---
 
 <div align="center">
 
-**Construído com ❤️ sobre os pilares de Clean Architecture, TDD e Event Sourcing**
+Built with precision adhering to Clean Architecture & Event Sourcing principles.
 
 </div>
