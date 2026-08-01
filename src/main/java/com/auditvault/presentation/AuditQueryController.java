@@ -15,12 +15,16 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/audit")
 @RequiredArgsConstructor
+@Tag(name = "Audit Queries", description = "Endpoints for searching and retrieving audit events")
 public class AuditQueryController {
 
     private final AuditEventRepository auditEventRepository;
@@ -29,6 +33,8 @@ public class AuditQueryController {
     private final Job auditExportJob;
     private final com.auditvault.infrastructure.elasticsearch.repository.ElasticsearchAuditRepository elasticsearchAuditRepository;
 
+    @Operation(summary = "Get events by aggregate", description = "Retrieves paginated audit events for a specific aggregate ID")
+    @ApiResponse(responseCode = "200", description = "Successful retrieval")
     @GetMapping("/events/{aggregateId}")
     public ResponseEntity<Page<AuditEventDto>> getEvents(
             @PathVariable String aggregateId,
@@ -39,6 +45,8 @@ public class AuditQueryController {
         return ResponseEntity.ok(page);
     }
 
+    @Operation(summary = "Search events", description = "Full-text search across all event payloads")
+    @ApiResponse(responseCode = "200", description = "Successful search results")
     @GetMapping("/search")
     public ResponseEntity<Page<com.auditvault.infrastructure.elasticsearch.document.AuditDocument>> searchEvents(
             @RequestParam String query,
@@ -47,6 +55,8 @@ public class AuditQueryController {
         return ResponseEntity.ok(page);
     }
 
+    @Operation(summary = "Reconstruct state", description = "Reconstructs the aggregate state at a specific point in time")
+    @ApiResponse(responseCode = "200", description = "State reconstructed successfully")
     @GetMapping("/state/{aggregateId}")
     public ResponseEntity<String> getState(
             @PathVariable String aggregateId,
@@ -58,6 +68,8 @@ public class AuditQueryController {
                 .body(state);
     }
 
+    @Operation(summary = "Trigger PDF export", description = "Starts an asynchronous batch job to export events to a PDF")
+    @ApiResponse(responseCode = "202", description = "Export job started")
     @PostMapping("/export/{aggregateId}")
     public ResponseEntity<Map<String, Object>> triggerExport(@PathVariable String aggregateId) {
         try {
@@ -77,6 +89,9 @@ public class AuditQueryController {
         }
     }
 
+    @Operation(summary = "Download exported PDF", description = "Downloads the generated PDF report by job execution ID")
+    @ApiResponse(responseCode = "200", description = "PDF file")
+    @ApiResponse(responseCode = "404", description = "File not found")
     @GetMapping("/export/download/{jobExecutionId}")
     public ResponseEntity<org.springframework.core.io.Resource> downloadExport(@PathVariable Long jobExecutionId) {
         try {

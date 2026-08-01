@@ -28,23 +28,12 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Testcontainers
-class AuditExportJobIntegrationTest {
+import com.auditvault.infrastructure.AbstractIntegrationTest;
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("testuser")
-            .withPassword("testpass");
+class AuditExportJobIntegrationTest extends AbstractIntegrationTest {
 
     @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+    static void configureBatchProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.batch.jdbc.initialize-schema", () -> "always");
     }
 

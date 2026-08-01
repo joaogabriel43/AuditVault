@@ -18,19 +18,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@Testcontainers
-public class ElasticsearchIntegrationTest {
+import com.auditvault.infrastructure.AbstractIntegrationTest;
 
-    @Container
-    private static final ElasticsearchContainer elasticsearch = new ElasticsearchContainer("docker.elastic.co/elasticsearch/elasticsearch:8.10.2")
-            .withEnv("discovery.type", "single-node")
-            .withEnv("xpack.security.enabled", "false");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.elasticsearch.uris", elasticsearch::getHttpHostAddress);
-    }
+public class ElasticsearchIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private ElasticsearchAuditRepository repository;

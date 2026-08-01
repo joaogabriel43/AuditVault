@@ -66,11 +66,14 @@ flowchart TD
 ## ⚙️ Core Features & Engineering Highlights
 
 - **🔒 Automated PII Data Masking:** Ensures LGPD/GDPR compliance. The `DataMaskingService` scans JSON payloads for sensitive keys (e.g., `password`, `cpf`, `cardNumber`, `secret`) and redacts them (`***`) prior to storage.
+- **🛡️ Enterprise Security (Spring Security + JWT):** API routes are fully protected by a stateless JWT filter. The AOP interceptor seamlessly extracts the authenticated user to tag the audit events.
+- **🛡️ Resilience & Fault Tolerance (Resilience4j):** Elasticsearch synchronization is protected by Circuit Breakers and Retries. If the search cluster goes down, the primary API and PostgreSQL write-path remain 100% available without cascading failures.
 - **📸 $O(1)$ State Reconstruction via Snapshots:** Replaying 100,000 events to determine current state is highly inefficient. The `SnapshotTriggerService` captures state checkpoints every *N* events, drastically speeding up CQRS queries.
 - **📄 Async PDF Export (Spring Batch):** Generating massive compliance reports shouldn't block HTTP threads. The chunk-oriented batch processor runs asynchronously, issuing a `jobExecutionId` for polling and download.
 - **🔍 High-Performance Full-Text Search:** Standard `LIKE %term%` database queries fall short at scale. Events are indexed in Elasticsearch asynchronously, ensuring rapid multi-dimensional search.
 - **⚡ Live Dashboard via SSE:** Unidirectional Server-Sent Events push logs instantly to the UI. A 25-second heartbeat mechanism maintains persistent, low-overhead connections through enterprise proxies.
-- **📊 SRE-Ready Observability:** Pre-configured endpoints for JVM health, connection pools, and query latencies exported in Prometheus format via Spring Boot Actuator.
+- **📊 SRE-Ready Observability:** Pre-configured endpoints for JVM health, connection pools, and query latencies exported in Prometheus format via Spring Boot Actuator, coupled with auto-provisioned Grafana Dashboards.
+- **✨ Premium UI/UX:** Angular frontend features a Glassmorphism login screen, Tailwind-powered Dark Mode, responsive Skeleton Loaders, and dynamic micro-animations.
 
 ---
 
@@ -79,13 +82,14 @@ flowchart TD
 | Layer | Technologies |
 | :--- | :--- |
 | **Backend Core** | Java 17, Spring Boot 3.2, Spring AOP, Spring Data JPA |
+| **Security & Resiliency** | Spring Security, JWT (jjwt), Resilience4j Circuit Breaker |
 | **Batch & Search** | Spring Batch (Chunk-oriented), Spring Data Elasticsearch |
 | **Write Database** | PostgreSQL 15 (JSONB optimization, Flyway Migrations) |
 | **Search Engine** | Elasticsearch 8.x |
 | **Frontend** | Angular 17+ (Standalone, Signals, TailwindCSS) |
 | **Reporting** | OpenPDF / Apache PDFBox |
-| **Observability** | Micrometer + Prometheus / Actuator |
-| **Infrastructure** | Docker Multi-stage, Docker Compose, Nginx Reverse Proxy |
+| **Observability** | Micrometer + Prometheus / Actuator, Grafana |
+| **Infrastructure** | Docker Multi-stage, Docker Compose, GitHub Actions (CI/CD) |
 
 ---
 

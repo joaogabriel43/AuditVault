@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto shadow-inner text-sm font-mono whitespace-pre-wrap">
+    <div class="bg-gray-900 text-green-400 p-5 rounded-xl border border-gray-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] text-sm font-mono whitespace-pre-wrap transition-colors hover:border-gray-600">
       @if (parsedJson()) {
         {{ parsedJson() | json }}
       } @else {

@@ -25,7 +25,7 @@ public class AuditEventListener {
 
     private final AuditEventRepository auditEventRepository;
     private final SnapshotTriggerService snapshotTriggerService;
-    private final ElasticsearchAuditRepository elasticsearchAuditRepository;
+    private final com.auditvault.application.service.ElasticsearchSyncService elasticsearchSyncService;
     private final SseNotificationService sseNotificationService;
 
     @Async("auditTaskExecutor")
@@ -52,21 +52,17 @@ public class AuditEventListener {
                 savedEvent.getId()
         );
 
-        // Sync with Elasticsearch
-        try {
-            AuditDocument doc = new AuditDocument(
-                    savedEvent.getId(),
-                    savedEvent.getAggregateId(),
-                    savedEvent.getAggregateType(),
-                    savedEvent.getEventType(),
-                    savedEvent.getTimestamp(),
-                    savedEvent.getUserId(),
-                    savedEvent.getPayload()
-            );
-            elasticsearchAuditRepository.save(doc);
-        } catch (Exception e) {
-            logger.warn("Failed to index audit event {} in Elasticsearch: {}", savedEvent.getId(), e.getMessage());
-        }
+        // Sync with Elasticsearch (CircuitBreaker protected)
+        AuditDocument doc = new AuditDocument(
+                savedEvent.getId(),
+                savedEvent.getAggregateId(),
+                savedEvent.getAggregateType(),
+                savedEvent.getEventType(),
+                savedEvent.getTimestamp(),
+                savedEvent.getUserId(),
+                savedEvent.getPayload()
+        );
+        elasticsearchSyncService.syncToElasticsearch(doc);
 
         // Broadcast to SSE clients
         AuditEventDto dto = new AuditEventDto(

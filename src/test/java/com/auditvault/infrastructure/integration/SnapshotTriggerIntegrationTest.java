@@ -25,26 +25,12 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.auditvault.infrastructure.AbstractIntegrationTest;
+
 @SpringBootTest(properties = {
         "auditvault.snapshot.threshold=5" // Low threshold for testing
 })
-@Testcontainers
-class SnapshotTriggerIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("testdb")
-            .withUsername("testuser")
-            .withPassword("testpass");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
-    }
+class SnapshotTriggerIntegrationTest extends AbstractIntegrationTest {
 
     @org.springframework.boot.test.context.TestConfiguration
     static class TestConfig {
