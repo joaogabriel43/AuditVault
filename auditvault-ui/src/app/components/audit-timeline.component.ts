@@ -10,17 +10,12 @@ import { AuditEvent } from '../models/audit.model';
     <div class="relative border-l border-gray-200 dark:border-gray-700 ml-3 transition-colors">
       @for (event of events; track event.id; let i = $index) {
         <div class="mb-10 ml-6 relative group cursor-pointer p-3 -mt-3 rounded-xl transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:shadow-sm" 
-             [class.animate-[fadeIn_0.5s_ease-out]]="event.isNew" 
-             [class.bg-teal-50]="event.isNew" 
-             [class.dark:bg-teal-900/20]="event.isNew" 
+             [ngClass]="{'animate-[fadeIn_0.5s_ease-out] bg-teal-50 dark:bg-teal-900/20': event.isNew}" 
              (click)="onSelect.emit(event)">
           <span class="absolute flex items-center justify-center w-6 h-6 bg-blue-100 dark:bg-blue-900/50 rounded-full -left-[45px] ring-8 ring-white dark:ring-gray-900 transition-colors group-hover:scale-110 group-hover:ring-gray-50 dark:group-hover:ring-gray-800" 
-                [class.bg-teal-200]="event.isNew" 
-                [class.dark:bg-teal-700]="event.isNew">
+                [ngClass]="{'bg-teal-200 dark:bg-teal-700': event.isNew}">
              <div class="w-2.5 h-2.5 bg-blue-600 dark:bg-blue-400 rounded-full transition-colors" 
-                  [class.bg-teal-600]="event.isNew" 
-                  [class.dark:bg-teal-400]="event.isNew" 
-                  [class.animate-pulse]="event.isNew"></div>
+                  [ngClass]="{'bg-teal-600 dark:bg-teal-400 animate-pulse': event.isNew}"></div>
           </span>
           <h3 class="flex items-center mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
             {{ event.eventType }}

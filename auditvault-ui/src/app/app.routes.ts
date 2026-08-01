@@ -1,6 +1,4 @@
 import { Routes } from '@angular/router';
-
-import { Routes } from '@angular/router';
 import { LoginComponent } from './components/login/login.component';
 import { AuditDashboardComponent } from './components/audit-dashboard.component';
 import { authGuard } from './guards/auth.guard';
